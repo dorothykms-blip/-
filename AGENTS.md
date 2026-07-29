@@ -1,30 +1,73 @@
-# Campus Taxi Share agent guidance
+# 택시타쉐어 개발 가이드
 
-## Product boundaries
+## 기준 문서와 작업 원칙
 
-- `PRD.md` is the functional source of truth. This is a campus taxi-sharing MVP for 2–4 people.
-- Sign-up collects student number, name, gender, and school email without an MVP verification flow. Handle personal and location data as sensitive.
-- Points are administrator-granted virtual units only. Do not add card payments, paid user top-ups, cash refunds, or PG integrations.
-- The point ledger is immutable and authoritative. Deposits, returns, additional debits, and final settlement must be server-authorized, transactional, and idempotent.
-- Keep the trip state machine explicit: room and participant transitions must follow the PRD and reject invalid retries.
-- Naver Map and Kakao Map must be accessed through a provider-neutral adapter. Never fabricate distance, duration, or fare values.
+- 제품·정책·출시 범위의 기준은 `PRD.md`다. 구현 전에 관련 FR/TR과 화면 흐름을 확인한다.
+- 공통 불변 조건은 `docs/agent-prd-contract.md`를 따른다. PRD와 충돌하면 PRD를 우선하고, 불명확한 사항은 추정 구현하지 않고 오픈 이슈로 남긴다.
+- MVP는 하나의 대학/캠퍼스 파일럿이다. 작은 변경으로 기능을 완결하고, 후속 단계 기능을 선행 구현하지 않는다.
+- 실제 동작과 검증된 외부 결과만 사용자에게 표시한다. 지도 거리·시간·예상 요금, 포인트 잔액, 정산 결과를 임의로 생성하거나 mock 값을 실데이터처럼 표현하지 않는다.
 
-## Stack and commands
+## MVP 범위
 
-- Next.js 16, React 19, TypeScript, Tailwind CSS 4, shadcn/base UI components.
-- Neon PostgreSQL is the planned database. Do not add another primary database without approval.
-- Vercel is the deployment target. Keep Development, Preview, and Production configuration separate and put secrets only in environment variables.
-- Validate changes with `npm run lint` and, for release-relevant work, `npm run build`.
+- 회원가입 필수값: 학번, 이름, 성별, 학교 이메일. MVP에서는 전화번호·학교 이메일·학생증 인증을 추가하지 않는다.
+- 모집은 2–4명이며, 최소 2명의 확정 참여자가 있어야 출발 가능하다.
+- 방장은 출발·도착지, 출발 시각, 목표 인원, 승인 방식을 정한다. 출발 시각 또는 수동 마감 뒤에는 신규 신청·승인을 막는다.
+- AI 추천은 후보를 설명 가능하게 제안할 뿐, 사용자 자동 참여나 자동 확정을 해서는 안 된다.
+- 포인트는 관리자 지급형 가상 정산 단위다. 카드결제, PG, 사용자 유상 충전, 현금 환불을 구현하지 않는다.
+- 신고·차단·기본 알림·거래 내역은 MVP 범위다. 실시간 집결 확인·실결제·영수증 자동 인식은 후속 단계다.
 
-## Working conventions
+## 도메인 불변 조건
 
-- Prefer narrow, mobile-first UI changes and reuse `components/ui` primitives.
-- Keep data mutations in server-side code; clients may not decide balances, authorizations, or state transitions.
-- Do not log personal data, raw location history, credentials, or point balances to analytics or client consoles.
-- Before changing data, payments, maps, or deployment configuration, consult the matching custom agent when useful: `neon_ledger_guardian`, `map_provider_architect`, or `vercel_release_guardian`.
+- 모든 권한, 잔액, 상태 전이는 Next.js 서버에서 검증한다. 클라이언트 입력으로 잔액·권한·정산 결과를 결정하지 않는다.
+- 포인트 원장은 관리자 지급, 예치, 반환, 추가 차감, 최종 정산을 모두 기록하는 변경 불가능한 기준 데이터다.
+- 예치·반환·추가 차감·정산은 데이터베이스 트랜잭션으로 처리하고, 멱등성 키로 중복 요청을 막는다.
+- 방 상태는 `DRAFT → OPEN → CLOSED/CONFIRMED → IN_PROGRESS → SETTLEMENT_PENDING → COMPLETED` 흐름을 기본으로 하며, `CANCELLED`, `EXPIRED` 예외를 명시적으로 처리한다.
+- 참여자 상태는 `APPLIED`, `APPROVED`, `DEPOSITED`, `CHECKED_IN`, `NO_SHOW`, `COMPLETED`, `CANCELLED`를 사용한다. 잘못된 상태 전이와 재시도는 안정적으로 거절한다.
+- 확정 인원은 4명을 넘을 수 없고, 2명 미만이면 출발 가능 상태로 전이할 수 없다.
+- 네이버 지도 또는 카카오맵은 제공자 중립 어댑터 뒤에 둔다. 거리·시간·요금 결과와 산정 시각·근거를 추적 가능하게 유지한다.
 
-## Project skills
+## 기술 규칙
 
-- Project-local skills live in `.agents/skills` and are automatically discoverable by Codex in this repository.
-- Use `prd-feature-delivery` for feature work and `prd-acceptance-review` before release or merge decisions.
-- Use the specialized skill matching the change boundary: `room-state-machine`, `point-ledger-settlement`, `map-provider-adapter`, `matching-recommendation`, `privacy-safety-moderation`, `mobile-flow-quality`, or `vercel-release-readiness`.
+- Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4와 현재 `components/ui` 규칙을 사용한다.
+- Neon PostgreSQL을 핵심 영속 저장소로 사용한다. 다른 주 데이터베이스를 도입하지 않는다.
+- Vercel의 Development, Preview, Production 환경을 분리한다. DB 연결 정보·지도 API 키·기타 비밀값은 환경 변수로만 관리한다.
+- 개인 정보, 원본 위치 이력, 영수증 이미지, 포인트 잔액, 비밀값을 클라이언트 콘솔·분석 이벤트·로그에 남기지 않는다.
+- 모바일 우선으로 구현하고, 로딩·빈 상태·검증 오류·권한 오류·동시성 충돌 상태를 UI에 명확하게 표현한다.
+
+## 개발 절차
+
+1. `PRD.md`에서 관련 FR/TR, 상태, 취소·노쇼 예외를 확인한다.
+2. 관련 프로젝트 스킬을 호출하고, 필요하면 전용 에이전트에게 읽기 전용 검토를 맡긴다.
+3. UI, 서버/API, 데이터 모델, 권한 검증, 실패/재시도 경로를 함께 설계한다.
+4. 기존 컴포넌트와 패턴을 우선 재사용해 가장 작은 변경을 구현한다.
+5. 변경한 경로의 정상·권한 오류·중복 요청·상태 충돌 시나리오를 확인한다.
+6. `npm run build`를 실행한다. ESLint가 구성된 경우 `npm run lint`도 실행하고, 실행 불가 시 원인을 결과에 남긴다.
+
+## 스킬과 에이전트 사용
+
+프로젝트 로컬 스킬은 `.agents/skills`에서 자동 발견된다. 기능 작업에는 먼저 `prd-feature-delivery`, 병합·출시 검토에는 `prd-acceptance-review`을 사용한다.
+
+| 변경 영역 | 필수/권장 스킬 | 검토 에이전트 |
+| --- | --- | --- |
+| 방 생성·참여·마감·취소·노쇼 | `room-state-machine` | 필요 시 `neon_ledger_guardian` |
+| 포인트·예치·환불·정산 | `point-ledger-settlement` | `neon_ledger_guardian` |
+| 지도·경로·예상 요금 | `map-provider-adapter` | `map_provider_architect` |
+| AI 후보·추천 사유·인접 목적지 | `matching-recommendation` | `map_provider_architect` |
+| 개인정보·신고·차단·영수증 | `privacy-safety-moderation` | — |
+| 화면·폼·모바일 UX | `mobile-flow-quality` | `nextjs_mobile_builder` |
+| Vercel 환경·프리뷰·출시 | `vercel-release-readiness` | `vercel_release_guardian` |
+
+에이전트 역할:
+
+- `nextjs_mobile_builder`: Next.js 모바일 웹과 서버 경로의 구현을 담당한다.
+- `neon_ledger_guardian`: 원장, 트랜잭션, 멱등성, 상태 전이의 위험을 읽기 전용으로 검토한다.
+- `map_provider_architect`: 지도 제공자 교체 가능성과 API 경계를 읽기 전용으로 검토한다.
+- `vercel_release_guardian`: 환경 분리와 배포 준비 상태를 읽기 전용으로 검토한다.
+
+## 완료 기준
+
+- 구현이 해당 FR/TR과 MVP 범위를 만족한다.
+- 서버 권한·원장·상태 전이·멱등성 조건을 훼손하지 않는다.
+- 개인 정보와 비밀값을 노출하지 않는다.
+- 변경 경로의 실패 및 재시도 동작을 설명하거나 검증했다.
+- 빌드가 통과했고, 외부 환경 설정이 필요한 경우 코드 변경과 분리해 명시했다.
