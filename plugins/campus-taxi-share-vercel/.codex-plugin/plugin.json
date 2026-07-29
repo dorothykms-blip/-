@@ -1,0 +1,24 @@
+{
+  "name": "campus-taxi-share-vercel",
+  "version": "1.0.0",
+  "description": "Vercel release workflows for the Campus Taxi Share Next.js service.",
+  "author": {
+    "name": "Campus Taxi Share Team"
+  },
+  "keywords": ["vercel", "nextjs", "deployment", "campus-taxi-share"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Campus Taxi Share Vercel",
+    "shortDescription": "Safe Vercel workflows for the taxi-share service.",
+    "longDescription": "Prepares, audits, and releases the Next.js taxi-share service on Vercel while protecting environment boundaries and payment-ledger safety.",
+    "developerName": "Campus Taxi Share Team",
+    "category": "Productivity",
+    "capabilities": ["Write"],
+    "defaultPrompt": [
+      "Prepare this branch for a safe Vercel preview deployment.",
+      "Audit the Vercel environment configuration for this Next.js app.",
+      "Review this release for point-ledger and settlement safety."
+    ],
+    "brandColor": "#111827"
+  }
+}

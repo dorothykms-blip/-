@@ -1,0 +1,20 @@
+{
+  "name": "campus-taxi-share",
+  "interface": {
+    "displayName": "Campus Taxi Share"
+  },
+  "plugins": [
+    {
+      "name": "campus-taxi-share-vercel",
+      "source": {
+        "source": "local",
+        "path": "./plugins/campus-taxi-share-vercel"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
